@@ -121,14 +121,14 @@
     <div class="absolute bottom-8 flex gap-6 z-20 opacity-50 text-[10px] text-[#D4AF37] uppercase tracking-widest">
         <span class="flex items-center gap-1"><i class="ph ph-lock-key"></i> Encriptado</span>
         <span class="flex items-center gap-1"><i class="ph ph-gavel"></i> Lex Consult</span>
-        <span class="flex items-center gap-1"><i class="ph ph-globe"></i> Online</span>
+        <span id="server-status" class="flex items-center gap-1"><i class="ph ph-globe"></i> Verificando Conexión...</span>
     </div>
 
     <script>
         // ==========================================
-        // CONFIGURACIÓN (SOBERANO: CAMBIE ESTO)
+        // CONFIGURACIÓN CORREGIDA (SIN BARRA AL FINAL)
         // ==========================================
-        const API_URL = "https://infinity-1a8b0e60d47c.herokuapp.com/"; // Su App de Heroku Legal
+        const API_URL = "https://abundalegal-c960c33a1447.herokuapp.com"; 
         // ==========================================
 
         const orb = document.getElementById('orb-visual');
@@ -136,9 +136,28 @@
         const responseBox = document.getElementById('response-text');
         const userBox = document.getElementById('user-transcript');
         const trigger = document.getElementById('orb-trigger');
+        const serverStatus = document.getElementById('server-status');
 
         let recognition;
         let synthesis = window.speechSynthesis;
+
+        // VERIFICACIÓN DE CONEXIÓN AL INICIO
+        fetch(API_URL)
+            .then(res => {
+                if (!res.ok) throw new Error("Server response not ok");
+                return res.json();
+            })
+            .then(data => {
+                if(data.estado === "ONLINE" || (data.status && data.status.includes("ONLINE"))) {
+                    serverStatus.innerHTML = '<i class="ph ph-check-circle text-green-500"></i> Servidor Online';
+                } else {
+                    serverStatus.innerHTML = '<i class="ph ph-warning text-red-500"></i> Servidor Offline';
+                }
+            })
+            .catch(err => {
+                serverStatus.innerHTML = '<i class="ph ph-x-circle text-red-500"></i> Error Conexión';
+                console.error("Error ping:", err);
+            });
 
         // Configurar Voz (Web Speech API)
         if ('webkitSpeechRecognition' in window) {
@@ -175,17 +194,21 @@
 
         async function askLegalBrain(question) {
             try {
-                // Llamada al Backend de Heroku
+                console.log("Enviando a:", `${API_URL}/api/chat`);
+                
                 const response = await fetch(`${API_URL}/api/chat`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         message: question,
-                        history: [] // Historial limpio para cada consulta rápida de voz
+                        history: [] 
                     })
                 });
 
-                if (!response.ok) throw new Error("Error del servidor");
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Error ${response.status}: ${errorText}`);
+                }
 
                 const data = await response.json();
                 const answer = data.response; // Ajustado al formato de su backend
@@ -200,8 +223,8 @@
             } catch (error) {
                 console.error(error);
                 orb.classList.remove('processing');
-                status.innerText = "Error de Conexión";
-                responseBox.innerText = "No se pudo contactar al servidor legal. Verifique la URL.";
+                status.innerText = "Fallo de Sistema";
+                responseBox.innerText = `Error técnico: ${error.message}. Verifique la consola.`;
             }
         }
 
@@ -235,6 +258,4 @@
 
     </script>
 </body>
-
 </html>
-
